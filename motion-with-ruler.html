@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>תרשים עקבות - הדגמה</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .animation-box {
+            width: 100%;
+            height: 250px; /* הגדלנו את הגובה כדי להכיל את הסרגל */
+            position: relative;
+            border: 1px solid #ccc;
+            margin: 20px 0;
+            background: #f8f8f8;
+            overflow: hidden;
+        }
+        .dot {
+            width: 20px;
+            height: 20px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            top: 90px;
+            left: 0;
+        }
+        .track {
+            position: absolute;
+            top: 100px;
+            width: 100%;
+            height: 2px;
+            background-color: #333;
+        }
+        .ruler {
+            position: absolute;
+            top: 140px;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+        }
+        .ruler-marks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        .ruler-mark {
+            position: absolute;
+            width: 1px;
+            background-color: #333;
+            bottom: 0;
+        }
+        .ruler-mark.long {
+            height: 15px;
+            top: 0;
+        }
+        .ruler-mark.medium {
+            height: 10px;
+            top: 5px;
+        }
+        .ruler-mark.short {
+            height: 5px;
+            top: 10px;
+        }
+        .ruler-number {
+            position: absolute;
+            top: 20px;
+            font-size: 10px;
+            transform: translateX(-50%);
+        }
+        .controls {
+            margin: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 0 10px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .trace-dot {
+            width: 10px;
+            height: 10px;
+            background-color: blue;
+            border-radius: 50%;
+            position: absolute;
+            top: 95px;
+        }
+        .explanation {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #e9f5e9;
+            border-radius: 5px;
+        }
+        .title {
+            color: #2c5282;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>תרשים עקבות - הדגמה</h1>
+        
+        <div class="controls">
+            <button onclick="showMotion('constant')">תנועה קבועה</button>
+            <button onclick="showMotion('accelerated')">תנועה מואצת</button>
+            <button onclick="showMotion('decelerated')">תנועה מואטת</button>
+            <button onclick="resetMotion()" style="background-color: #f44336;">איפוס</button>
+        </div>
+
+        <div class="animation-box" id="animationBox">
+            <div class="track"></div>
+            <div id="movingDot" class="dot"></div>
+            <div class="ruler">
+                <div id="rulerMarks" class="ruler-marks"></div>
+            </div>
+        </div>
+
+        <div class="explanation">
+            <h2 id="motionTitle" class="title">בחר סוג תנועה להדגמה</h2>
+            <p id="motionText"></p>
+        </div>
+    </div>
+
+    <script>
+        const dot = document.getElementById('movingDot');
+        const textElement = document.getElementById('motionText');
+        const titleElement = document.getElementById('motionTitle');
+        const animationBox = document.getElementById('animationBox');
+        const rulerMarks = document.getElementById('rulerMarks');
+        let traces = [];
+        let animationInterval;
+
+        // יצירת סרגל המדידה
+        function createRuler() {
+            const rulerWidth = rulerMarks.offsetWidth;
+            const mmPerPixel = rulerWidth / 600; // נניח שהרוחב המלא מייצג 600 מ"מ
+            
+            for (let i = 0; i <= 600; i += 10) {
+                const mark = document.createElement('div');
+                mark.className = 'ruler-mark';
+                
+                // קו ארוך כל 50 מ"מ
+                if (i % 50 === 0) {
+                    mark.className += ' long';
+                    const number = document.createElement('div');
+                    number.className = 'ruler-number';
+                    number.textContent = i;
+                    mark.appendChild(number);
+                }
+                // קו בינוני כל 25 מ"מ
+                else if (i % 25 === 0) {
+                    mark.className += ' medium';
+                }
+                // קו קצר כל 10 מ"מ
+                else {
+                    mark.className += ' short';
+                }
+                
+                mark.style.left = (i * mmPerPixel) + 'px';
+                rulerMarks.appendChild(mark);
+            }
+        }
+
+        // יצירת הסרגל בטעינת הדף
+        window.onload = createRuler;
+
+        function clearTraces() {
+            traces.forEach(trace => trace.remove());
+            traces = [];
+        }
+
+        function resetMotion() {
+            clearInterval(animationInterval);
+            clearTraces();
+            dot.style.transition = 'none';
+            dot.style.left = '0';
+            titleElement.textContent = 'בחר סוג תנועה להדגמה';
+            textElement.textContent = '';
+        }
+
+        function addTrace(position) {
+            const trace = document.createElement('div');
+            trace.className = 'trace-dot';
+            trace.style.left = position + 'px';
+            animationBox.appendChild(trace);
+            traces.push(trace);
+        }
+
+        function showMotion(type) {
+            resetMotion();
+            let startTime = Date.now();
+            let duration = 5000; // 5 seconds
+            const boxWidth = animationBox.offsetWidth - 20;
+
+            switch(type) {
+                case 'constant':
+                    titleElement.textContent = 'תנועה קבועה';
+                    textElement.textContent = 'שים לב: המרחקים בין הנקודות הכחולות שווים - המהירות קבועה';
+                    break;
+                case 'accelerated':
+                    titleElement.textContent = 'תנועה מואצת';
+                    textElement.textContent = 'שים לב: המרחקים בין הנקודות הכחולות הולכים וגדלים - המהירות גדלה';
+                    break;
+                case 'decelerated':
+                    titleElement.textContent = 'תנועה מואטת';
+                    textElement.textContent = 'שים לב: המרחקים בין הנקודות הכחולות הולכים וקטנים - המהירות קטנה';
+                    break;
+            }
+
+            animationInterval = setInterval(() => {
+                let elapsed = Date.now() - startTime;
+                let progress = elapsed / duration;
+
+                if (progress >= 1) {
+                    clearInterval(animationInterval);
+                    return;
+                }
+
+                let position;
+                switch(type) {
+                    case 'constant':
+                        position = progress * boxWidth;
+                        break;
+                    case 'accelerated':
+                        position = (progress * progress) * boxWidth;
+                        break;
+                    case 'decelerated':
+                        position = (-(progress - 1) * (progress - 1) + 1) * boxWidth;
+                        break;
+                }
+
+                dot.style.left = position + 'px';
+                
+                if (elapsed % 500 < 50) {
+                    addTrace(position);
+                }
+            }, 16);
+        }
+    </script>
+</body>
+</html>
